@@ -1,0 +1,13 @@
+---
+- name: Get Windows Uptime via Facts
+  hosts: windows
+  gather_facts: yes
+
+  tasks:
+    - name: Show uptime in seconds
+      debug:
+        msg: "Uptime: {{ ansible_uptime_seconds }} seconds"
+
+    - name: Convert to days
+      debug:
+        msg: "Uptime: {{ (ansible_uptime_seconds / 86400) | int }} days"
