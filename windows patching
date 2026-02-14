@@ -1,0 +1,57 @@
+---
+- name: Production Windows Patching
+  hosts: all
+  gather_facts: yes
+  vars:
+    reboot_timeout: 3600
+    post_reboot_delay: 60
+
+  tasks:
+
+    - name: Ensure WinRM is reachable
+      ansible.windows.win_ping:
+
+    - name: Search for available Windows updates
+      ansible.windows.win_updates:
+        category_names:
+          - CriticalUpdates
+          - SecurityUpdates
+          - UpdateRollups
+        state: searched
+      register: update_search
+
+    - name: Show number of updates available
+      debug:
+        msg: "Found {{ update_search.found_update_count }} updates"
+
+    - name: Install Windows updates
+      ansible.windows.win_updates:
+        category_names:
+          - CriticalUpdates
+          - SecurityUpdates
+          - UpdateRollups
+        state: installed
+        reboot: no
+      register: update_install
+
+    - name: Reboot if required
+      ansible.windows.win_reboot:
+        reboot_timeout: "{{ reboot_timeout }}"
+        post_reboot_delay: "{{ post_reboot_delay }}"
+      when: update_install.reboot_required
+
+    - name: Wait for system to come back
+      ansible.windows.win_ping:
+      register: post_reboot_ping
+      retries: 10
+      delay: 30
+      until: post_reboot_ping is succeeded
+
+    - name: Confirm system uptime
+      ansible.windows.win_shell: |
+        (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
+      register: uptime
+
+    - name: Show reboot confirmation
+      debug:
+        var: uptime.stdout
