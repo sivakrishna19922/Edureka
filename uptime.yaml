@@ -1,6 +1,6 @@
 ---
 - name: Get Windows Uptime via Facts
-  hosts: windows
+  hosts: all
   gather_facts: yes
 
   tasks:
