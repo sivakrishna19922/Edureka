@@ -33,25 +33,40 @@
         state: installed
         reboot: no
       register: update_install
+      when: update_search.found_update_count > 0
+      failed_when: >
+        update_install.failed_update_count > 0 and
+        "'WU_E_NOT_APPLICABLE' not in update_install.msg"
 
     - name: Reboot if required
       ansible.windows.win_reboot:
         reboot_timeout: "{{ reboot_timeout }}"
         post_reboot_delay: "{{ post_reboot_delay }}"
-      when: update_install.reboot_required
+      when:
+        - update_search.found_update_count > 0
+        - update_install.reboot_required
 
     - name: Wait for system to come back
       ansible.windows.win_ping:
       register: post_reboot_ping
-      retries: 10
+      retries: 20
       delay: 30
       until: post_reboot_ping is succeeded
+      when:
+        - update_search.found_update_count > 0
+        - update_install.reboot_required
 
     - name: Confirm system uptime
       ansible.windows.win_shell: |
         (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
       register: uptime
+      when:
+        - update_search.found_update_count > 0
+        - update_install.reboot_required
 
     - name: Show reboot confirmation
       debug:
         var: uptime.stdout
+      when:
+        - update_search.found_update_count > 0
+        - update_install.reboot_required
